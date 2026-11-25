@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloud-Based Application Monitoring System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <div class="app-shell">
+    <!-- Top Navigation / Header -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1>Cloud Application Monitoring System</h1>
+          <p class="subtitle">Availability, Latency &amp; Performance Analytics</p>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="monitor-select-wrap">
+          <label for="monitorSelect" class="sr-only">Target Application</label>
+          <select id="monitorSelect" class="select-input"></select>
+        </div>
+        <button id="checkNowBtn" class="btn btn-primary" type="button">
+          <span class="btn-dot"></span> Check Now
+        </button>
+        <button id="editTargetBtn" class="btn btn-secondary" type="button">Configure Target</button>
+        <button id="addTargetBtn" class="btn btn-ghost" type="button">+ Add Target</button>
+      </div>
+    </header>
+
+    <!-- Target Info Bar -->
+    <section class="target-bar">
+      <div class="target-meta">
+        <span class="meta-label">Monitored Endpoint:</span>
+        <a id="targetUrlLink" href="#" target="_blank" rel="noopener noreferrer" class="mono-link">-</a>
+        <span class="meta-sep">&bull;</span>
+        <span class="meta-label">Interval:</span>
+        <span id="targetInterval" class="mono-val">-</span>
+        <span class="meta-sep">&bull;</span>
+        <span class="meta-label">Last Checked:</span>
+        <span id="lastCheckedAt" class="mono-val">Never</span>
+      </div>
+      <div class="refresh-pill">
+        <span class="live-dot"></span>
+        <span>Auto-refresh: 15s</span>
+      </div>
+    </section>
+
+    <!-- Downtime Banner (shown when status is DOWN) -->
+    <div id="downtimeBanner" class="downtime-banner hidden" role="alert">
+      <strong>Downtime Detected:</strong>
+      <span id="downtimeBannerText">The monitored application is currently unreachable or returning an error.</span>
+    </div>
+
+    <!-- KPI Summary Cards -->
+    <section class="kpi-grid">
+      <article class="kpi-card">
+        <div class="kpi-label">Current Status</div>
+        <div class="kpi-value-row">
+          <span id="statusBadge" class="status-badge pending">PENDING</span>
+        </div>
+        <div id="statusSubtext" class="kpi-sub">Waiting for first check</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Overall Uptime</div>
+        <div id="uptimeValue" class="kpi-value">0.00%</div>
+        <div class="kpi-sub">Availability across all checks</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Avg Response Time</div>
+        <div id="avgResponseValue" class="kpi-value">0 ms</div>
+        <div id="responseRangeSub" class="kpi-sub">Min: 0 ms &bull; Max: 0 ms</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Health Checks</div>
+        <div id="totalChecksValue" class="kpi-value">0</div>
+        <div id="checksBreakdownSub" class="kpi-sub">
+          <span class="text-up">0 passed</span> &bull; <span class="text-down">0 failed</span>
+        </div>
+      </article>
+    </section>
+
+    <!-- Charts Section -->
+    <section class="charts-grid">
+      <article class="panel chart-panel-wide">
+        <div class="panel-header">
+          <div>
+            <h2>Response-Time History</h2>
+            <p class="panel-sub">HTTP round-trip latency (ms) over recent checks</p>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="responseTimeChart"></canvas>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Check Outcomes</h2>
+            <p class="panel-sub">Successful vs. failed health checks</p>
+          </div>
+        </div>
+        <div class="chart-wrap chart-wrap-doughnut">
+          <canvas id="statusDistributionChart"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <!-- Alerts & GitHub Actions Section -->
+    <section class="two-col-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Downtime &amp; Alert Notifications</h2>
+            <p class="panel-sub">Automatic downtime, recovery, and high-latency alerts</p>
+          </div>
+        </div>
+        <div id="alertsList" class="alerts-list">
+          <div class="empty-state">No alerts recorded yet.</div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>GitHub Actions Workflow Monitoring</h2>
+            <p id="workflowRepoLabel" class="panel-sub">Configure a GitHub repo (owner/repo) to track CI/CD runs</p>
+          </div>
+          <button id="syncWorkflowsBtn" class="btn btn-secondary btn-sm" type="button">Sync Workflows</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Workflow</th>
+                <th>Run</th>
+                <th>Branch</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="workflowsTableBody">
+              <tr>
+                <td colspan="4" class="empty-cell">No workflow runs synced yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- Error History & Recent Activity -->
+    <section class="two-col-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>HTTP Error History</h2>
+            <p class="panel-sub">Recent failed checks, timeouts, and non-2xx/3xx responses</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Code</th>
+                <th>Error Details</th>
+              </tr>
+            </thead>
+            <tbody id="errorsTableBody">
+              <tr>
+                <td colspan="3" class="empty-cell">No HTTP errors recorded.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2>Recent Monitoring Activity</h2>
+            <p class="panel-sub">Latest HTTP health check logs stored in SQLite</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Status</th>
+                <th>HTTP</th>
+                <th>Latency</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr>
+                <td colspan="4" class="empty-cell">No health checks recorded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>Cloud-Based Monitoring and Performance Analysis System for Web Applications</span>
+      <span>External HTTP Endpoint &amp; GitHub Actions Monitoring &bull; Flask + SQLite + Chart.js</span>
+    </footer>
+  </div>
+
+  <!-- Configure / Add Monitor Modal -->
+  <div id="monitorModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Configure Target Application</h3>
+        <button id="closeModalBtn" class="icon-btn" type="button" aria-label="Close modal">&times;</button>
+      </div>
+      <form id="monitorForm" class="modal-form">
+        <input type="hidden" id="formMonitorId" />
+        <label class="form-field">
+          <span>Application Name</span>
+          <input type="text" id="formName" required placeholder="Empty Classroom Finder" />
+        </label>
+        <label class="form-field">
+          <span>Target URL (Render / Web App)</span>
+          <input type="url" id="formUrl" required placeholder="https://empty-classroom-finder.onrender.com" />
+        </label>
+        <label class="form-field">
+          <span>Check Interval (seconds, min 10)</span>
+          <input type="number" id="formInterval" min="10" value="60" required />
+        </label>
+        <label class="form-field">
+          <span>GitHub Repository (optional, owner/repo)</span>
+          <input type="text" id="formGithubRepo" placeholder="username/empty-classroom-finder" />
+        </label>
+        <div id="formError" class="form-error hidden"></div>
+        <div class="modal-actions">
+          <button id="cancelModalBtn" class="btn btn-ghost" type="button">Cancel</button>
+          <button class="btn btn-primary" type="submit">Save Configuration</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+
+</html>

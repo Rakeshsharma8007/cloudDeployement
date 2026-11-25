@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: cloud-monitoring-dashboard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /health
+    envVars:
+      - key: TARGET_NAME
+        value: Empty Classroom Finder
+      - key: TARGET_URL
+        value: https://emptyclassroomfinder-thi7.onrender.com/
+      - key: CHECK_INTERVAL_SECONDS
+        value: "60"
+      - key: GITHUB_REPO
+        value: ""
+      - key: ALERT_WEBHOOK_URL
+        value: ""
